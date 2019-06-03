@@ -11,8 +11,7 @@ unitemized <- fread("./raw/test/candidate_summary_2016.csv") %>%
   mutate(type = "unitemized",
          match_donors = no_match,
          match_gov = match_donors * 6,
-         match_total = match_gov + match_donors,
-         )
+         match_total = match_gov + match_donors)
 
 
 
