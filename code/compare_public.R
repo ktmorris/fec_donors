@@ -1,20 +1,45 @@
-participation_rate <- 1
-cap <- 
+library(data.table)
+library(tidyverse)
+library(lubridate)
+library(readxl)
+library(scales)
 
-unitemized <- fread("./raw/test/candidate_summary_2016.csv") %>% 
-  select(Cand_Id, Cand_Name, Individual_Unitemized_Contribution, Individual_Contribution,
-         Cand_Contribution, Total_Contribution) %>% 
-  filter(substring(Cand_Id, 1, 1) == "H") %>% 
-  group_by(Cand_Id) %>% 
-  summarize(no_match = sum(Individual_Unitemized_Contribution),
+
+participation_rate <- 1
+
+unitemized <- fread("./raw/new_unitemized/candidate_summary_2016.csv") %>% 
+  #filter(Cand_Office == "H") %>% 
+  mutate(year = 2016) %>% 
+  select(Cand_Id, Total_Receipt, Individual_Itemized_Contribution, Individual_Unitemized_Contribution,
+         Cand_Office_St, Cand_Office_Dist, Total_Receipt, year, Cand_Contribution) %>% 
+  group_by(Cand_Id, year) %>% 
+  summarize(small_donors = sum(Individual_Unitemized_Contribution),
             candidate_contribution = sum(Cand_Contribution)) %>% 
   mutate(type = "unitemized",
-         match_donors = no_match,
-         match_gov = match_donors * 6,
-         match_total = match_gov + match_donors)
+         match_gov = small_donors * 6,
+         total_no_match = small_donors)
 
 
+#### get total money
+individual_file <- fread("./raw/CampaignFin16/indivs16.txt", sep = ",", quote = "|")
+cols <- fread("./raw/lookup/individual_contributor_fields.csv")
+colnames(individual_file) <- cols$Field
 
+individual_file <- individual_file %>% 
+  filter(trimws(ContribID) != "",
+       tolower(substring(RealCode, 1, 1)) != "z", #Z means bad things
+       !grepl("actblue", tolower(Contrib))) %>%  # no act blue donations
+  group_by(hh = substring(ContribID, 1, 11), ContribID, RecipID) %>% 
+  summarize(amount = sum(Amount, na.rm = T),
+            Contrib = min(Contrib)) %>% 
+  filter(amount >= 200)
+
+
+small_no_match <- sum(unitemized$small_donors)
+small_match <- (small_no_match * 7) - sum(unitemized$candidate_contribution)
+
+  tot_no_match <- sum(individual_file$amount) + small_no_match
+tot_match <- sum(individual_file$amount) + small_match
 ##### 2016, for instance
 
 ids <- read_xlsx("./raw/test/CRP_IDs.xlsx", sheet = "Candidate IDs - 2016")

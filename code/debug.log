@@ -1,0 +1,6 @@
+[0612/163646.413:ERROR:file_io_win.cc(170)] CreateFile C:\Users\morrisk\AppData\Local\Temp\scoped_dir48920_32141\Crashpad\reports\ea3f263f-30a8-45b4-a81e-6a8d8df56637.dmp: The system cannot find the path specified. (0x3)
+[0612/163646.417:ERROR:crash_report_exception_handler.cc(97)] PrepareNewCrashReport failed
+[0613/122241.022:ERROR:process_reader_win.cc(123)] NtOpenThread: {Access Denied} A process has requested access to an object, but has not been granted those access rights. (0xc0000022)
+[0613/122241.037:ERROR:exception_snapshot_win.cc(98)] thread ID 44792 not found in process
+[0630/123108.584:ERROR:prune_crash_reports.cc(34)] PruneCrashReportDatabase: Failed to get pending reports
+[0701/123107.908:ERROR:prune_crash_reports.cc(34)] PruneCrashReportDatabase: Failed to get pending reports

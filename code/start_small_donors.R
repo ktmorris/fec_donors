@@ -71,10 +71,5 @@ for(year_x in analysis_years){
               Contrib = min(Contrib)) %>% 
     filter(amount >= 200)
   
-  recip_level <- donor_cand %>% 
-    group_by(RecipID) %>% 
-    summarize(amount = sum(amount, na.rm = T)) %>% 
-    mutate(type = "itemized")
-  
   saveRDS(donor_cand, paste0("./temp/donor_cand_", year_x, ".rds"))
 }

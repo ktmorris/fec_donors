@@ -15,7 +15,7 @@ c <- c("HOUSE_SENATE_CAMPAIGNS", "INDEPENDENT_EXPENDITURE", "PAC", "PARTY", "PRE
 ## start by reading in all the data from the FEC for 2016 and 2018, for each type
 unitemized <- rbindlist(lapply(c, function(x){
   k <- rbindlist(lapply(c(2008, 2010, 2012, 2014, 2016, 2018), function(y){
-    j <- fread(paste0("H:/Public/Democracy/Voting Rights & Elections/data/misc/mip_2018/raw/unitemized", "_", y, "/", y, "_", x, "_DOWNLOAD.csv"))
+    j <- fread(paste0("./raw/unitemized", "_", y, "/", y, "_", x, "_DOWNLOAD.csv"))
     colnames(j) <- make.unique(colnames(j))
     j <- j %>% 
       mutate(type = x,
@@ -33,9 +33,19 @@ unitemized$other_com_con <- as.numeric(gsub("[$,]", "", unitemized$oth_cmte_cont
 unitemized$end_date <- as.Date(unitemized$cvg_end_dt)
 
 unitemized_ll <- unitemized %>% 
-  filter(end_date <= "2018-12-20") %>% 
-  group_by(year, type) %>% 
+  filter(end_date <= "2018-12-20",
+         type %in% c("PRESIDENTIAL_CAMPAIGNS", "HOUSE_SENATE_CAMPAIGNS")) %>% 
+  group_by(year = cand_election_yr, type) %>% 
   summarize(total_unitemized = sum(ind_uni_con, na.rm = T))
+
+### district-level
+
+unitemized$district <- substring(unitemized$cand_id, 3, 6)
+
+district <- unitemized %>% 
+  group_by(year = cand_election_yr, district) %>% 
+  summarize(total_unitemized = sum(ind_uni_con, na.rm = T))
+
 
 
 #### itemized
@@ -52,8 +62,8 @@ analysis_years <- c(2008, 2010, 2012, 2014, 2016, 2018)
 
 for(year_x in analysis_years){
   short_year <- str_pad(as.character(year_x - 2000), 2, side = "left", pad = "0")
-  individual_file <- fread(paste0("H:/Public/Democracy/Voting Rights & Elections/data/misc/mip_2018/raw/CampaignFin", short_year, "/indivs", short_year, ".txt"), sep = ",", quote = "|")
-  cols <- fread("H:/Public/Democracy/Voting Rights & Elections/data/misc/mip_2018/raw/lookup/individual_contributor_fields.csv")
+  individual_file <- fread(paste0("./raw/CampaignFin", short_year, "/indivs", short_year, ".txt"), sep = ",", quote = "|")
+  cols <- fread("./raw/lookup/individual_contributor_fields.csv")
   colnames(individual_file) <- cols$Field
   individual_file$Type <- trimws(individual_file$Type)
   
@@ -109,7 +119,7 @@ for(year_x in analysis_years){
   amounts_data$share_given <- amounts_data$amount / total_given
   amounts_data$group <- factor(amounts_data$group, levels = c("Less than $200", "$350 or less", "$10,000 or More", "$100,000 or More", "$1,000,000 or More"))
   
-  fwrite(amounts_data, paste0("H:/Public/Democracy/Voting Rights & Elections/data/misc/mip_2018/output/amounts_", year_x, ".csv"))
+  fwrite(amounts_data, paste0("./output/amounts_", year_x, ".csv"))
   
   if(year_x == 2018){
     ggplot(amounts_data, aes(x = group, y = share_given)) + geom_col(color = "black") + theme_bc() +
@@ -118,7 +128,7 @@ for(year_x in analysis_years){
                                                                                                                        y = share_given + 0.01, label = percent(round(share_given, 3)),
                                                                                                                        family = "Roboto")) +
       labs(caption = "Sources: FEC, OpenSecrets\n\nNotes: Includes data through December 20, 2018")
-    ggsave(paste0("H:/Public/Democracy/Voting Rights & Elections/data/misc/mip_2018/output/individuals_to_anywhere_", year_x, ".png"))
+    ggsave(paste0("./output/individuals_to_anywhere_", year_x, ".png"))
   }else{
     ggplot(amounts_data, aes(x = group, y = share_given)) + geom_col(color = "black") + theme_bc() +
       scale_y_continuous(labels = percent) + ylab("Share of Money Given") + xlab("Money that came from donors who gave...") +
@@ -126,14 +136,14 @@ for(year_x in analysis_years){
                                                                                                                        y = share_given + 0.01, label = percent(round(share_given, 3)),
                                                                                                                        family = "Roboto")) +
       labs(caption = "Sources: FEC, OpenSecrets")
-      ggsave(paste0("H:/Public/Democracy/Voting Rights & Elections/data/misc/mip_2018/output/individuals_to_anywhere_", year_x, ".png"))
+      ggsave(paste0("./output/individuals_to_anywhere_", year_x, ".png"))
   }
 
 }
 
 amounts <- rbindlist(lapply(analysis_years, function(year){
-  j <- fread(paste0("H:/Public/Democracy/Voting Rights & Elections/data/misc/mip_2018/output/amounts_", year, ".csv")) %>% 
+  j <- fread(paste0("./output/amounts_", year, ".csv")) %>% 
     mutate(year = year)
 }))
 
-fwrite(amounts, "H:/Public/Democracy/Voting Rights & Elections/data/misc/mip_2018/output/amounts.csv")
+fwrite(amounts, "./mip_2018/output/amounts.csv")
