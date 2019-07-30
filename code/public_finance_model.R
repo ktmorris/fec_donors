@@ -81,11 +81,13 @@ unitemized$end_date <- as.Date(unitemized$cvg_end_dt)
 unitemized_ll <- unitemized %>% 
   mutate(cand_id = ifelse(trimws(cand_id) == "", cmte_id, cand_id)) %>% 
   mutate_at(vars(indv_item_contb, indv_unitem_contb, cand_cntb), ~ ifelse(is.na(.), 0, .)) %>% 
-  group_by(fec_election_yr, cand_id, filing_year, cand_election_yr) %>% 
+  group_by(fec_election_yr, cand_id, filing_year, cand_election_yr, type) %>% 
   summarize(total_unitemized = sum(indv_unitem_contb, na.rm = T),
             candidate_contribution = sum(cand_cntb, na.rm = T),
             total_itemized = sum(indv_item_contb),
-            ttl_receipts = sum(indv_item_contb + indv_unitem_contb + cand_cntb, na.rm = T))
+            ttl_receipts = sum(ttl_receipts, na.rm = T),
+            ttl_disb = sum(ttl_disb, na.rm = T),
+            cand_name = min(cand_name))
 
 unitemized_ll <- left_join(unitemized_ll,
                            all_fec_lookup,
@@ -101,14 +103,22 @@ unitemized_ll <- left_join(unitemized_ll, results)
 
 # cap is equal to half the amount spent in avg of the 20 most expensive winning campaigns
 
-cap <- unitemized_ll %>% 
-  filter(general == "W",
-         CAND_OFFICE == "H") %>% 
-  group_by(fec_election_yr) %>% 
-  arrange(-ttl_receipts) %>% 
-  filter(row_number() <= 20) %>% 
-  group_by(fec_election_yr) %>% 
-  summarize(cap = mean(ttl_receipts / 2))
+cap1 <- unitemized_ll %>% 
+  filter(general == "W", ## needed to win in general
+         CAND_OFFICE == "H") %>% ## candidate for house race
+  group_by(fec_election_yr) %>% ## group by year
+  arrange(-ttl_disb) %>% ## sort highest-to-lowest by total reciepts in cycle
+  filter(row_number() <= 20) ## keep only top 20 in each year 
+
+fwrite(filter(cap1, fec_election_yr == 2014), "./output/reps_used_for_cap_2014.csv")
+
+cap <- cap1 %>% 
+  summarize(cap = mean(ttl_disb / 2)) ## take the average amount raised / 2
+
+cap <- rbind(cap,
+             cap %>% 
+               filter(fec_election_yr == 2016) %>% 
+               mutate(fec_election_yr = 2018))
 
 unitemized_ll <- left_join(unitemized_ll, cap)
 
@@ -229,6 +239,8 @@ full_candidate_level <- full_candidate_level %>%
          new_itemized_gt100k = ifelse(participate, gt_100k * 7 * 200, amount_gt_100k),
          new_itemized_gt1m = ifelse(participate, gt_1m * 7 * 200, amount_gt_1m))
 
+mean(filter(full_candidate_level, CAND_OFFICE == "H", total_unitemized > 0)$change_perc > 1)
+
 ####
 left_overs <- itemized %>% 
   filter(!(RecipID %in% full_candidate_level$RecipID)) %>% 
@@ -265,8 +277,8 @@ fwrite(low_level, "./output/stats.csv")
 ############################# LIMIT TO ONLY HOUSE
 
 j <- bind_rows(full_candidate_level, left_overs) %>% 
-  filter(CAND_OFFICE != "H") %>% 
   group_by(Cycle) %>% 
+  #filter(CAND_OFFICE == "H") %>% 
   mutate_at(vars(old_total, new_total,
                  old_small, new_small,
                  old_big,   new_big,
@@ -287,6 +299,6 @@ j <- bind_rows(full_candidate_level, left_overs) %>%
          share_gt10k_new = new_itemized_gt10k / new_total,
          share_gt1m_old = amount_gt_1m / old_total,
          share_gt1m_new = new_itemized_gt1m / new_total)
-
+fwrite(j, "./output/money_to_house_races.csv")
 
 ####
